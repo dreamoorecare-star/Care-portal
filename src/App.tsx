@@ -4,7 +4,7 @@ import "./App.css";
 
 const supabase = createClient(
   "https://uktftzmuzgoojrpwgcdi.supabase.co",
-  "sb_publishable_W93k0VM9O7M8nkf6Xya2Uw_QFmrahv9"
+  "sb_publishable_W93k0VM907M8nkf6Xya2Uw_QFmrahv9"
 );
 
 const USER_NAMES: Record<string, string> = {
@@ -16,67 +16,81 @@ const ADMINS = ["laura@test.com"];
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
   const [shifts, setShifts] = useState<any[]>([]);
-
   const [client, setClient] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [suburb, setSuburb] = useState("");
   const [urgent, setUrgent] = useState(false);
+  const [formError, setFormError] = useState("");
 
   useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
     fetchShifts();
   }, []);
 
   const fetchShifts = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("shifts")
       .select("*")
       .order("id", { ascending: false });
 
-    if (data) {
-      setShifts(data);
-    }
+    if (!error) setShifts(data || []);
   };
 
-  const login = () => {
-    if (password !== "123456") {
-      setLoginError("Incorrect password");
-      return;
-    }
+  const getName = (email: string) => USER_NAMES[email] || email || "";
 
+  const login = async () => {
     setLoginError("");
 
-    setSession({
-      user: {
-        email,
-      },
+    const { error } = await supabase.auth.signInWithPassword({
+      email: loginEmail,
+      password: loginPassword,
     });
+
+    if (error) {
+      setLoginError("Incorrect email or password.");
+    }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setSession(null);
   };
 
   const addShift = async () => {
-    if (!client || !date || !time || !suburb) return;
+    setFormError("");
 
-    await supabase.from("shifts").insert([
-      {
-        client,
-        date,
-        time,
-        endtime: endTime,
-        suburb,
-        urgent,
-        claimedby: null,
-      },
-    ]);
+    if (!client || !date || !time || !endTime || !suburb) {
+      setFormError("Please fill in client, date, start time, end time and suburb.");
+      return;
+    }
+
+    const { error } = await supabase.from("shifts").insert({
+      client,
+      date,
+      time,
+      endtime: endTime,
+      suburb,
+      urgent,
+      claimedby: null,
+      requestedby: session.user.email,
+    });
+
+    if (error) {
+      setFormError("Shift could not be added. Please try again.");
+      return;
+    }
 
     setClient("");
     setDate("");
@@ -88,17 +102,10 @@ export default function App() {
     fetchShifts();
   };
 
-  const deleteShift = async (id: number) => {
-    await supabase.from("shifts").delete().eq("id", id);
-    fetchShifts();
-  };
-
   const claimShift = async (id: number) => {
     await supabase
       .from("shifts")
-      .update({
-        claimedby: session.user.email,
-      })
+      .update({ claimedby: session.user.email })
       .eq("id", id);
 
     fetchShifts();
@@ -107,11 +114,16 @@ export default function App() {
   const unclaimShift = async (id: number) => {
     await supabase
       .from("shifts")
-      .update({
-        claimedby: null,
-      })
+      .update({ claimedby: null })
       .eq("id", id);
 
+    fetchShifts();
+  };
+
+  const deleteShift = async (id: number) => {
+    if (!confirm("Delete this shift?")) return;
+
+    await supabase.from("shifts").delete().eq("id", id);
     fetchShifts();
   };
 
@@ -123,20 +135,18 @@ export default function App() {
 
           <input
             placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={loginEmail}
+            onChange={(e) => setLoginEmail(e.target.value)}
           />
 
           <input
             type="password"
             placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={loginPassword}
+            onChange={(e) => setLoginPassword(e.target.value)}
           />
 
-          {loginError && (
-            <p style={{ color: "red", marginTop: 10 }}>{loginError}</p>
-          )}
+          {loginError && <p style={{ color: "red" }}>{loginError}</p>}
 
           <button onClick={login}>Login</button>
         </div>
@@ -151,7 +161,7 @@ export default function App() {
       <div className="topbar">
         <div>
           <h1>Care Portal</h1>
-          <p>Welcome {USER_NAMES[session.user.email]}</p>
+          <p>Welcome {getName(session.user.email)}</p>
         </div>
 
         <button onClick={logout}>Logout</button>
@@ -162,45 +172,19 @@ export default function App() {
           <h2>Add Shift</h2>
 
           <div className="form-grid">
-            <input
-              placeholder="Client"
-              value={client}
-              onChange={(e) => setClient(e.target.value)}
-            />
-
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
-
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-            />
-
-            <input
-              placeholder="Suburb"
-              value={suburb}
-              onChange={(e) => setSuburb(e.target.value)}
-            />
+            <input placeholder="Client" value={client} onChange={(e) => setClient(e.target.value)} />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            <input placeholder="Suburb" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
 
             <label className="urgent-box">
-              <input
-                type="checkbox"
-                checked={urgent}
-                onChange={(e) => setUrgent(e.target.checked)}
-              />
+              <input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} />
               Urgent
             </label>
           </div>
+
+          {formError && <p style={{ color: "red" }}>{formError}</p>}
 
           <button className="primary-btn" onClick={addShift}>
             Add Shift
@@ -216,49 +200,27 @@ export default function App() {
             <div className="shift-card" key={shift.id}>
               <div className="shift-header">
                 <h2>{shift.client}</h2>
-
-                {shift.urgent && (
-                  <span className="urgent-badge">URGENT</span>
-                )}
+                {shift.urgent && <span className="urgent-badge">URGENT</span>}
               </div>
 
               <p>{shift.date}</p>
-
-              <p>
-                {shift.time}
-                {shift.endtime ? ` - ${shift.endtime}` : ""}
-              </p>
-
+              <p>{shift.time} {shift.endtime ? `- ${shift.endtime}` : ""}</p>
               <p>{shift.suburb}</p>
 
-              <div className="status-row">
-                {covered ? (
-                  <span className="covered">
-                    Covered by {USER_NAMES[shift.claimedby]}
-                  </span>
-                ) : (
-                  <span className="not-covered">Not Covered</span>
-                )}
-              </div>
+              {covered ? (
+                <p className="covered">Covered by {getName(shift.claimedby)}</p>
+              ) : (
+                <p className="not-covered">Not Covered</p>
+              )}
 
               <div className="button-row">
-                {!covered && (
-                  <button onClick={() => claimShift(shift.id)}>
-                    Claim Shift
-                  </button>
-                )}
+                {!covered && <button onClick={() => claimShift(shift.id)}>Claim Shift</button>}
 
                 {shift.claimedby === session.user.email && (
-                  <button onClick={() => unclaimShift(shift.id)}>
-                    Unclaim
-                  </button>
+                  <button onClick={() => unclaimShift(shift.id)}>Unclaim</button>
                 )}
 
-                {isAdmin && (
-                  <button onClick={() => deleteShift(shift.id)}>
-                    Delete
-                  </button>
-                )}
+                {isAdmin && <button onClick={() => deleteShift(shift.id)}>Delete</button>}
               </div>
             </div>
           );
