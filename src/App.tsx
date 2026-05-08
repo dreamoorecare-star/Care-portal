@@ -50,17 +50,27 @@ export default function App() {
 
   const getName = (email: string) => USER_NAMES[email] || email || "";
 
+  const isAdmin = session && ADMINS.includes(session.user.email);
+
   const login = async () => {
     setLoginError("");
 
-    const { error } = await supabase.auth.signInWithPassword({
+    if (!loginEmail || !loginPassword) {
+      setLoginError("Please enter your email and password.");
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password: loginPassword,
     });
 
-    if (error) {
+    if (error || !data.session) {
       setLoginError("Incorrect email or password.");
+      return;
     }
+
+    setSession(data.session);
   };
 
   const logout = async () => {
@@ -72,7 +82,7 @@ export default function App() {
     setFormError("");
 
     if (!client || !date || !time || !endTime || !suburb) {
-      setFormError("Please fill in client, date, start time, end time and suburb.");
+      setFormError("Please fill in all shift details.");
       return;
     }
 
@@ -112,15 +122,12 @@ export default function App() {
   };
 
   const unclaimShift = async (id: number) => {
-    await supabase
-      .from("shifts")
-      .update({ claimedby: null })
-      .eq("id", id);
-
+    await supabase.from("shifts").update({ claimedby: null }).eq("id", id);
     fetchShifts();
   };
 
   const deleteShift = async (id: number) => {
+    if (!isAdmin) return;
     if (!confirm("Delete this shift?")) return;
 
     await supabase.from("shifts").delete().eq("id", id);
@@ -132,6 +139,7 @@ export default function App() {
       <div className="login-page">
         <div className="login-card">
           <h1>Care Portal</h1>
+          <p>Sign in to continue</p>
 
           <input
             placeholder="Email"
@@ -144,9 +152,12 @@ export default function App() {
             placeholder="Password"
             value={loginPassword}
             onChange={(e) => setLoginPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") login();
+            }}
           />
 
-          {loginError && <p style={{ color: "red" }}>{loginError}</p>}
+          {loginError && <div className="error-text">{loginError}</div>}
 
           <button onClick={login}>Login</button>
         </div>
@@ -154,14 +165,15 @@ export default function App() {
     );
   }
 
-  const isAdmin = ADMINS.includes(session.user.email);
-
   return (
     <div className="app">
       <div className="topbar">
         <div>
           <h1>Care Portal</h1>
-          <p>Welcome {getName(session.user.email)}</p>
+          <p>
+            Welcome {getName(session.user.email)}{" "}
+            {isAdmin ? "(Admin)" : "(Carer)"}
+          </p>
         </div>
 
         <button onClick={logout}>Logout</button>
@@ -184,7 +196,7 @@ export default function App() {
             </label>
           </div>
 
-          {formError && <p style={{ color: "red" }}>{formError}</p>}
+          {formError && <div className="error-text">{formError}</div>}
 
           <button className="primary-btn" onClick={addShift}>
             Add Shift
@@ -195,6 +207,7 @@ export default function App() {
       <div className="shift-list">
         {shifts.map((shift) => {
           const covered = !!shift.claimedby;
+          const mine = shift.claimedby === session.user.email;
 
           return (
             <div className="shift-card" key={shift.id}>
@@ -204,7 +217,9 @@ export default function App() {
               </div>
 
               <p>{shift.date}</p>
-              <p>{shift.time} {shift.endtime ? `- ${shift.endtime}` : ""}</p>
+              <p>
+                {shift.time} {shift.endtime ? `- ${shift.endtime}` : ""}
+              </p>
               <p>{shift.suburb}</p>
 
               {covered ? (
@@ -216,9 +231,7 @@ export default function App() {
               <div className="button-row">
                 {!covered && <button onClick={() => claimShift(shift.id)}>Claim Shift</button>}
 
-                {shift.claimedby === session.user.email && (
-                  <button onClick={() => unclaimShift(shift.id)}>Unclaim</button>
-                )}
+                {mine && <button onClick={() => unclaimShift(shift.id)}>Unclaim</button>}
 
                 {isAdmin && <button onClick={() => deleteShift(shift.id)}>Delete</button>}
               </div>
