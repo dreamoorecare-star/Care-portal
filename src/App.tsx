@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-//test
 
 const supabase = createClient(
   "https://uktftzmuzgoojrpwgcdi.supabase.co",
@@ -32,29 +31,44 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+
     fetchShifts();
     fetchAvailability();
   }, []);
 
   const fetchShifts = async () => {
-    const { data } = await supabase.from("shifts").select("*").order("id", { ascending: false });
+    const { data } = await supabase
+      .from("shifts")
+      .select("*")
+      .order("id", { ascending: false });
+
     setShifts(data || []);
   };
 
   const fetchAvailability = async () => {
-    const { data } = await supabase.from("availability").select("*");
+    const { data } = await supabase
+      .from("availability")
+      .select("*");
+
     setAvailability(data || []);
   };
 
-  const getName = (email: string) => USER_NAMES[email] || email || "";
+  const getName = (email: string) => {
+    return USER_NAMES[email] || email || "";
+  };
 
   const formatTime = (time: string) => {
     if (!time) return "";
+
     const [hour, minute] = time.split(":");
+
     let h = parseInt(hour);
+
     const ampm = h >= 12 ? "pm" : "am";
+
     if (h > 12) h -= 12;
     if (h === 0) h = 12;
+
     return `${h}:${minute}${ampm}`;
   };
 
@@ -84,7 +98,12 @@ export default function App() {
 
   const deleteShift = async (id: number) => {
     if (!confirm("Delete this shift?")) return;
-    await supabase.from("shifts").delete().eq("id", id);
+
+    await supabase
+      .from("shifts")
+      .delete()
+      .eq("id", id);
+
     fetchShifts();
   };
 
@@ -100,6 +119,7 @@ export default function App() {
       .eq("id", editingId);
 
     setEditingId(null);
+
     fetchShifts();
   };
 
@@ -108,12 +128,13 @@ export default function App() {
   };
 
   const claimShift = async (id: number) => {
-    await supabase.from("shifts").update({ claimedby: session.user.email }).eq("id", id);
-    fetchShifts();
-  };
+    await supabase
+      .from("shifts")
+      .update({
+        claimedby: session.user.email,
+      })
+      .eq("id", id);
 
-  const unclaimShift = async (id: number) => {
-    await supabase.from("shifts").update({ claimedby: null }).eq("id", id);
     fetchShifts();
   };
 
@@ -130,11 +151,16 @@ export default function App() {
     return (
       <div style={{ textAlign: "center", marginTop: 100 }}>
         <h2>Login</h2>
+
         <button
           onClick={async () => {
             const email = prompt("Email");
             const password = prompt("Password");
-            await supabase.auth.signInWithPassword({ email: email!, password: password! });
+
+            await supabase.auth.signInWithPassword({
+              email: email!,
+              password: password!,
+            });
           }}
         >
           Login
@@ -151,25 +177,60 @@ export default function App() {
 
       <div style={{ textAlign: "center", marginBottom: 20 }}>
         {getName(session.user.email)}
+
         <br />
-        <button onClick={() => supabase.auth.signOut()}>Logout</button>
+
+        <button onClick={() => supabase.auth.signOut()}>
+          Logout
+        </button>
       </div>
 
       {isAdmin && (
         <>
           <h3>Add Shift</h3>
-          <input placeholder="Client" value={client} onChange={(e) => setClient(e.target.value)} />
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <input type="time" value={starttime} onChange={(e) => setStarttime(e.target.value)} />
-          <input type="time" value={endtime} onChange={(e) => setEndtime(e.target.value)} />
-          <input placeholder="Suburb" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
+
+          <input
+            placeholder="Client"
+            value={client}
+            onChange={(e) => setClient(e.target.value)}
+          />
+
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+
+          <input
+            type="time"
+            value={starttime}
+            onChange={(e) => setStarttime(e.target.value)}
+          />
+
+          <input
+            type="time"
+            value={endtime}
+            onChange={(e) => setEndtime(e.target.value)}
+          />
+
+          <input
+            placeholder="Suburb"
+            value={suburb}
+            onChange={(e) => setSuburb(e.target.value)}
+          />
 
           <label>
-            <input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={urgent}
+              onChange={(e) => setUrgent(e.target.checked)}
+            />
             Urgent
           </label>
 
-          <button onClick={addShift}>Add Shift</button>
+          <button onClick={addShift}>
+            Add Shift
+          </button>
         </>
       )}
 
@@ -177,46 +238,122 @@ export default function App() {
 
       {shifts.map((shift) => {
         const matches = getMatches(shift);
+
         const isEditing = editingId === shift.id;
 
         return (
-          <div key={shift.id} style={{ border: "1px solid #ddd", padding: 15, marginBottom: 15 }}>
-
+          <div
+            key={shift.id}
+            style={{
+              border: "1px solid #ddd",
+              padding: 15,
+              marginBottom: 15,
+            }}
+          >
             {isEditing ? (
               <>
-                <input value={editData.client} onChange={(e) => setEditData({ ...editData, client: e.target.value })} />
-                <input type="date" value={editData.date} onChange={(e) => setEditData({ ...editData, date: e.target.value })} />
-                <input type="time" value={editData.time} onChange={(e) => setEditData({ ...editData, time: e.target.value })} />
-                <input type="time" value={editData.endtime} onChange={(e) => setEditData({ ...editData, endtime: e.target.value })} />
-                <input value={editData.suburb} onChange={(e) => setEditData({ ...editData, suburb: e.target.value })} />
+                <input
+                  value={editData.client}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      client: e.target.value,
+                    })
+                  }
+                />
 
-                <button onClick={saveEdit}>Save</button>
-                <button onClick={cancelEdit}>Cancel</button>
+                <input
+                  type="date"
+                  value={editData.date}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      date: e.target.value,
+                    })
+                  }
+                />
+
+                <input
+                  type="time"
+                  value={editData.time}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      time: e.target.value,
+                    })
+                  }
+                />
+
+                <input
+                  type="time"
+                  value={editData.endtime}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      endtime: e.target.value,
+                    })
+                  }
+                />
+
+                <input
+                  value={editData.suburb}
+                  onChange={(e) =>
+                    setEditData({
+                      ...editData,
+                      suburb: e.target.value,
+                    })
+                  }
+                />
+
+                <button onClick={saveEdit}>
+                  Save
+                </button>
+
+                <button onClick={cancelEdit}>
+                  Cancel
+                </button>
               </>
             ) : (
               <>
                 <h3>{shift.client}</h3>
+
                 <p>{shift.date}</p>
-                <p>{formatTime(shift.time)} – {formatTime(shift.endtime)}</p>
+
+                <p>
+                  {formatTime(shift.time)} –{" "}
+                  {formatTime(shift.endtime)}
+                </p>
 
                 {!shift.claimedby ? (
-                  <button onClick={() => claimShift(shift.id)}>Claim</button>
+                  <button onClick={() => claimShift(shift.id)}>
+                    Claim
+                  </button>
                 ) : (
-                  <p>Covered by {getName(shift.claimedby)}</p>
+                  <p>
+                    Covered by {getName(shift.claimedby)}
+                  </p>
                 )}
 
                 {isAdmin && (
                   <>
-                    <button onClick={() => startEdit(shift)}>Edit</button>
-                    <button onClick={() => deleteShift(shift.id)}>Delete</button>
+                    <button onClick={() => startEdit(shift)}>
+                      Edit
+                    </button>
+
+                    <button onClick={() => deleteShift(shift.id)}>
+                      Delete
+                    </button>
                   </>
                 )}
 
                 {matches.length > 0 && (
                   <div>
                     Available:
+
                     {matches.map((m) => (
-                      <div key={m.id}>{getName(m.email)}</div>
+                      <div key={m.id}>
+                        {getName(m.email)}
+                      </div>
                     ))}
                   </div>
                 )}
