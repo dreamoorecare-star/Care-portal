@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import "./App.css";
 
 const supabase = createClient(
   "https://uktftzmuzgoojrpwgcdi.supabase.co",
-  "sb_publishable_W93k0VM907M8nkf6Xya2Uw_QFmrahv9"
+  "sb_publishable_W93k0VM9O7M8nkf6Xya2Uw_QFmrahv9"
 );
 
 const USER_NAMES: Record<string, string> = {
@@ -15,25 +16,21 @@ const ADMINS = ["laura@test.com"];
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
-  const [shifts, setShifts] = useState<any[]>([]);
-  const [availability, setAvailability] = useState<any[]>([]);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
 
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editData, setEditData] = useState<any>({});
+  const [shifts, setShifts] = useState<any[]>([]);
 
   const [client, setClient] = useState("");
   const [date, setDate] = useState("");
-  const [starttime, setStarttime] = useState("");
-  const [endtime, setEndtime] = useState("");
+  const [time, setTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [suburb, setSuburb] = useState("");
   const [urgent, setUrgent] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    supabase.auth.onAuthStateChange((_event, session) => setSession(session));
-
     fetchShifts();
-    fetchAvailability();
   }, []);
 
   const fetchShifts = async () => {
@@ -42,54 +39,49 @@ export default function App() {
       .select("*")
       .order("id", { ascending: false });
 
-    setShifts(data || []);
+    if (data) {
+      setShifts(data);
+    }
   };
 
-  const fetchAvailability = async () => {
-    const { data } = await supabase
-      .from("availability")
-      .select("*");
+  const login = () => {
+    if (password !== "123456") {
+      setLoginError("Incorrect password");
+      return;
+    }
 
-    setAvailability(data || []);
+    setLoginError("");
+
+    setSession({
+      user: {
+        email,
+      },
+    });
   };
 
-  const getName = (email: string) => {
-    return USER_NAMES[email] || email || "";
-  };
-
-  const formatTime = (time: string) => {
-    if (!time) return "";
-
-    const [hour, minute] = time.split(":");
-
-    let h = parseInt(hour);
-
-    const ampm = h >= 12 ? "pm" : "am";
-
-    if (h > 12) h -= 12;
-    if (h === 0) h = 12;
-
-    return `${h}:${minute}${ampm}`;
+  const logout = () => {
+    setSession(null);
   };
 
   const addShift = async () => {
-    if (!client || !date || !starttime || !endtime) return;
+    if (!client || !date || !time || !suburb) return;
 
-    await supabase.from("shifts").insert({
-      client,
-      date,
-      time: starttime,
-      endtime,
-      suburb,
-      urgent,
-      requestedby: session.user.email,
-      claimedby: null,
-    });
+    await supabase.from("shifts").insert([
+      {
+        client,
+        date,
+        time,
+        endtime: endTime,
+        suburb,
+        urgent,
+        claimedby: null,
+      },
+    ]);
 
     setClient("");
     setDate("");
-    setStarttime("");
-    setEndtime("");
+    setTime("");
+    setEndTime("");
     setSuburb("");
     setUrgent(false);
 
@@ -97,34 +89,8 @@ export default function App() {
   };
 
   const deleteShift = async (id: number) => {
-    if (!confirm("Delete this shift?")) return;
-
-    await supabase
-      .from("shifts")
-      .delete()
-      .eq("id", id);
-
+    await supabase.from("shifts").delete().eq("id", id);
     fetchShifts();
-  };
-
-  const startEdit = (shift: any) => {
-    setEditingId(shift.id);
-    setEditData({ ...shift });
-  };
-
-  const saveEdit = async () => {
-    await supabase
-      .from("shifts")
-      .update(editData)
-      .eq("id", editingId);
-
-    setEditingId(null);
-
-    fetchShifts();
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
   };
 
   const claimShift = async (id: number) => {
@@ -138,33 +104,42 @@ export default function App() {
     fetchShifts();
   };
 
-  const getMatches = (shift: any) => {
-    return availability.filter(
-      (a) =>
-        a.date === shift.date &&
-        a.starttime <= shift.time &&
-        a.endtime >= shift.endtime
-    );
+  const unclaimShift = async (id: number) => {
+    await supabase
+      .from("shifts")
+      .update({
+        claimedby: null,
+      })
+      .eq("id", id);
+
+    fetchShifts();
   };
 
   if (!session) {
     return (
-      <div style={{ textAlign: "center", marginTop: 100 }}>
-        <h2>Login</h2>
+      <div className="login-page">
+        <div className="login-card">
+          <h1>Care Portal</h1>
 
-        <button
-          onClick={async () => {
-            const email = prompt("Email");
-            const password = prompt("Password");
+          <input
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
 
-            await supabase.auth.signInWithPassword({
-              email: email!,
-              password: password!,
-            });
-          }}
-        >
-          Login
-        </button>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          {loginError && (
+            <p style={{ color: "red", marginTop: 10 }}>{loginError}</p>
+          )}
+
+          <button onClick={login}>Login</button>
+        </div>
       </div>
     );
   }
@@ -172,196 +147,123 @@ export default function App() {
   const isAdmin = ADMINS.includes(session.user.email);
 
   return (
-    <div style={{ padding: 20, maxWidth: 650, margin: "auto" }}>
-      <h2 style={{ textAlign: "center" }}>Care Portal</h2>
+    <div className="app">
+      <div className="topbar">
+        <div>
+          <h1>Care Portal</h1>
+          <p>Welcome {USER_NAMES[session.user.email]}</p>
+        </div>
 
-      <div style={{ textAlign: "center", marginBottom: 20 }}>
-        {getName(session.user.email)}
-
-        <br />
-
-        <button onClick={() => supabase.auth.signOut()}>
-          Logout
-        </button>
+        <button onClick={logout}>Logout</button>
       </div>
 
       {isAdmin && (
-        <>
-          <h3>Add Shift</h3>
+        <div className="add-shift-card">
+          <h2>Add Shift</h2>
 
-          <input
-            placeholder="Client"
-            value={client}
-            onChange={(e) => setClient(e.target.value)}
-          />
-
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-
-          <input
-            type="time"
-            value={starttime}
-            onChange={(e) => setStarttime(e.target.value)}
-          />
-
-          <input
-            type="time"
-            value={endtime}
-            onChange={(e) => setEndtime(e.target.value)}
-          />
-
-          <input
-            placeholder="Suburb"
-            value={suburb}
-            onChange={(e) => setSuburb(e.target.value)}
-          />
-
-          <label>
+          <div className="form-grid">
             <input
-              type="checkbox"
-              checked={urgent}
-              onChange={(e) => setUrgent(e.target.checked)}
+              placeholder="Client"
+              value={client}
+              onChange={(e) => setClient(e.target.value)}
             />
-            Urgent
-          </label>
 
-          <button onClick={addShift}>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+            />
+
+            <input
+              placeholder="Suburb"
+              value={suburb}
+              onChange={(e) => setSuburb(e.target.value)}
+            />
+
+            <label className="urgent-box">
+              <input
+                type="checkbox"
+                checked={urgent}
+                onChange={(e) => setUrgent(e.target.checked)}
+              />
+              Urgent
+            </label>
+          </div>
+
+          <button className="primary-btn" onClick={addShift}>
             Add Shift
           </button>
-        </>
+        </div>
       )}
 
-      <hr />
+      <div className="shift-list">
+        {shifts.map((shift) => {
+          const covered = !!shift.claimedby;
 
-      {shifts.map((shift) => {
-        const matches = getMatches(shift);
+          return (
+            <div className="shift-card" key={shift.id}>
+              <div className="shift-header">
+                <h2>{shift.client}</h2>
 
-        const isEditing = editingId === shift.id;
+                {shift.urgent && (
+                  <span className="urgent-badge">URGENT</span>
+                )}
+              </div>
 
-        return (
-          <div
-            key={shift.id}
-            style={{
-              border: "1px solid #ddd",
-              padding: 15,
-              marginBottom: 15,
-            }}
-          >
-            {isEditing ? (
-              <>
-                <input
-                  value={editData.client}
-                  onChange={(e) =>
-                    setEditData({
-                      ...editData,
-                      client: e.target.value,
-                    })
-                  }
-                />
+              <p>{shift.date}</p>
 
-                <input
-                  type="date"
-                  value={editData.date}
-                  onChange={(e) =>
-                    setEditData({
-                      ...editData,
-                      date: e.target.value,
-                    })
-                  }
-                />
+              <p>
+                {shift.time}
+                {shift.endtime ? ` - ${shift.endtime}` : ""}
+              </p>
 
-                <input
-                  type="time"
-                  value={editData.time}
-                  onChange={(e) =>
-                    setEditData({
-                      ...editData,
-                      time: e.target.value,
-                    })
-                  }
-                />
+              <p>{shift.suburb}</p>
 
-                <input
-                  type="time"
-                  value={editData.endtime}
-                  onChange={(e) =>
-                    setEditData({
-                      ...editData,
-                      endtime: e.target.value,
-                    })
-                  }
-                />
-
-                <input
-                  value={editData.suburb}
-                  onChange={(e) =>
-                    setEditData({
-                      ...editData,
-                      suburb: e.target.value,
-                    })
-                  }
-                />
-
-                <button onClick={saveEdit}>
-                  Save
-                </button>
-
-                <button onClick={cancelEdit}>
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <h3>{shift.client}</h3>
-
-                <p>{shift.date}</p>
-
-                <p>
-                  {formatTime(shift.time)} –{" "}
-                  {formatTime(shift.endtime)}
-                </p>
-
-                {!shift.claimedby ? (
-                  <button onClick={() => claimShift(shift.id)}>
-                    Claim
-                  </button>
+              <div className="status-row">
+                {covered ? (
+                  <span className="covered">
+                    Covered by {USER_NAMES[shift.claimedby]}
+                  </span>
                 ) : (
-                  <p>
-                    Covered by {getName(shift.claimedby)}
-                  </p>
+                  <span className="not-covered">Not Covered</span>
+                )}
+              </div>
+
+              <div className="button-row">
+                {!covered && (
+                  <button onClick={() => claimShift(shift.id)}>
+                    Claim Shift
+                  </button>
+                )}
+
+                {shift.claimedby === session.user.email && (
+                  <button onClick={() => unclaimShift(shift.id)}>
+                    Unclaim
+                  </button>
                 )}
 
                 {isAdmin && (
-                  <>
-                    <button onClick={() => startEdit(shift)}>
-                      Edit
-                    </button>
-
-                    <button onClick={() => deleteShift(shift.id)}>
-                      Delete
-                    </button>
-                  </>
+                  <button onClick={() => deleteShift(shift.id)}>
+                    Delete
+                  </button>
                 )}
-
-                {matches.length > 0 && (
-                  <div>
-                    Available:
-
-                    {matches.map((m) => (
-                      <div key={m.id}>
-                        {getName(m.email)}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        );
-      })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
