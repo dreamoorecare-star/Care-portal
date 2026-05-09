@@ -431,35 +431,90 @@ export default function App() {
       )}
 
       {activeTab === "calendar" && (
-        <div>
-          {shifts.map((shift) => (
-            <div className="shift-card" key={shift.id}>
-              <h2>{normaliseDate(shift.date)}</h2>
+  <div className="calendar-page">
+    <div className="calendar-controls">
+      <button
+        className={
+          activeTab === "calendar-week"
+            ? "active-calendar-btn"
+            : ""
+        }
+      >
+        Week
+      </button>
 
-              <h3>{shift.client}</h3>
+      <button>2 Weeks</button>
 
-              <p>
-                {formatTime(shift.time)} –{" "}
-                {formatTime(shift.endtime)}
+      <button>Month</button>
+    </div>
+
+    <div className="calendar-grid">
+      {Array.from({ length: 14 }).map((_, index) => {
+        const today = new Date();
+
+        const dayDate = new Date();
+        dayDate.setDate(today.getDate() + index);
+
+        const formattedDate = dayDate
+          .toISOString()
+          .split("T")[0];
+
+        const dayShifts = shifts.filter(
+          (shift) =>
+            normaliseDate(shift.date) ===
+            formattedDate
+        );
+
+        return (
+          <div
+            className="calendar-day"
+            key={formattedDate}
+          >
+            <h3>
+              {dayDate.toLocaleDateString("en-AU", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+              })}
+            </h3>
+
+            {dayShifts.length === 0 && (
+              <p className="no-shifts">
+                No shifts
               </p>
+            )}
 
-              <p>{shift.suburb}</p>
+            {dayShifts.map((shift) => (
+              <div
+                className="calendar-shift"
+                key={shift.id}
+              >
+                <strong>{shift.client}</strong>
 
-              {shift.claimedby ? (
-                <p className="covered">
-                  Covered by{" "}
-                  {USER_NAMES[shift.claimedby] ||
-                    shift.claimedby}
+                <p>
+                  {formatTime(shift.time)} –{" "}
+                  {formatTime(shift.endtime)}
                 </p>
-              ) : (
-                <p className="not-covered">
-                  Not Covered
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+
+                <p>{shift.suburb}</p>
+
+                {shift.claimedby ? (
+                  <p className="covered">
+                    Covered
+                  </p>
+                ) : (
+                  <p className="not-covered">
+                    Not Covered
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
 
       {activeTab === "shifts" && (
         <div className="shift-list">

@@ -313,4 +313,55 @@ select {
     grid-template-columns: 1fr 1fr;
   }
 }
+.calendar-page {
+  margin-top: 20px;
+}
 
+.calendar-controls {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.calendar-controls button {
+  flex: 1;
+  margin: 0;
+}
+
+.active-calendar-btn {
+  background: #1f2f4a;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.calendar-day {
+  background: #f8f8f8;
+  border-radius: 24px;
+  padding: 20px;
+  min-height: 220px;
+}
+
+.calendar-day h3 {
+  margin-top: 0;
+  color: #1f2f4a;
+}
+
+.calendar-shift {
+  background: white;
+  border-radius: 18px;
+  padding: 14px;
+  margin-top: 14px;
+}
+
+.calendar-shift p {
+  margin: 6px 0;
+}
+
+.no-shifts {
+  color: #888;
+  font-size: 14px;
+}
