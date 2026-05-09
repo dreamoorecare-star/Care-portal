@@ -14,6 +14,35 @@ const USER_NAMES: Record<string, string> = {
 
 const ADMINS = ["laura@test.com"];
 
+function normaliseDate(dateValue: string) {
+  if (!dateValue) return "";
+
+  if (dateValue.includes("-")) return dateValue;
+
+  const parts = dateValue.split("/");
+  if (parts.length === 3) {
+    const [day, month, year] = parts;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  return dateValue;
+}
+
+function formatTime(timeValue: string) {
+  if (!timeValue) return "";
+
+  const [hourText, minuteText] = timeValue.split(":");
+  let hour = Number(hourText);
+  const minute = minuteText || "00";
+
+  const ampm = hour >= 12 ? "pm" : "am";
+
+  if (hour === 0) hour = 12;
+  if (hour > 12) hour -= 12;
+
+  return `${hour}:${minute}${ampm}`;
+}
+
 export default function App() {
   const [session, setSession] = useState<any>(null);
 
@@ -86,7 +115,7 @@ export default function App() {
   const addShift = async () => {
     await supabase.from("shifts").insert({
       client,
-      date,
+      date: normaliseDate(date),
       time,
       endtime: endTime,
       suburb,
@@ -128,14 +157,13 @@ export default function App() {
 
   const deleteShift = async (id: number) => {
     await supabase.from("shifts").delete().eq("id", id);
-
     fetchShifts();
   };
 
   const addAvailability = async () => {
     await supabase.from("availability").insert({
       email: session.user.email,
-      date: availDate,
+      date: normaliseDate(availDate),
       starttime: availStart,
       endtime: availEnd,
     });
@@ -149,11 +177,12 @@ export default function App() {
 
   const getMatchingCarers = (shift: any) => {
     return availability.filter((item) => {
-      return (
-        item.date === shift.date &&
-        item.starttime <= shift.time &&
-        item.endtime >= shift.endtime
-      );
+      const sameDate = normaliseDate(item.date) === normaliseDate(shift.date);
+
+      const startsBeforeOrSame = item.starttime <= shift.time;
+      const endsAfterOrSame = item.endtime >= shift.endtime;
+
+      return sameDate && startsBeforeOrSame && endsAfterOrSame;
     });
   };
 
@@ -178,9 +207,7 @@ export default function App() {
             onChange={(e) => setLoginPassword(e.target.value)}
           />
 
-          {loginError && (
-            <div className="error-text">{loginError}</div>
-          )}
+          {loginError && <div className="error-text">{loginError}</div>}
 
           <button onClick={login}>Login</button>
         </div>
@@ -284,7 +311,6 @@ export default function App() {
       <div className="shift-list">
         {shifts.map((shift) => {
           const isMine = shift.claimedby === session.user.email;
-
           const matches = getMatchingCarers(shift);
 
           return (
@@ -293,16 +319,14 @@ export default function App() {
                 <h2>{shift.client}</h2>
 
                 {shift.urgent && (
-                  <span className="urgent-badge">
-                    URGENT
-                  </span>
+                  <span className="urgent-badge">URGENT</span>
                 )}
               </div>
 
-              <p>{shift.date}</p>
+              <p>{normaliseDate(shift.date)}</p>
 
               <p>
-                {shift.time} - {shift.endtime}
+                {formatTime(shift.time)} – {formatTime(shift.endtime)}
               </p>
 
               <p>{shift.suburb}</p>
@@ -310,17 +334,14 @@ export default function App() {
               {shift.claimedby ? (
                 <p className="covered">
                   Covered by{" "}
-                  {USER_NAMES[shift.claimedby] ||
-                    shift.claimedby}
+                  {USER_NAMES[shift.claimedby] || shift.claimedby}
                 </p>
               ) : (
-                <p className="not-covered">
-                  Not Covered
-                </p>
+                <p className="not-covered">Not Covered</p>
               )}
 
               {matches.length > 0 && (
-                <div style={{ marginTop: "10px" }}>
+                <div className="match-box">
                   <strong>Available carers:</strong>
 
                   {matches.map((match) => (
@@ -333,25 +354,19 @@ export default function App() {
 
               <div className="button-row">
                 {!shift.claimedby && (
-                  <button
-                    onClick={() => claimShift(shift.id)}
-                  >
+                  <button onClick={() => claimShift(shift.id)}>
                     Claim Shift
                   </button>
                 )}
 
                 {isMine && (
-                  <button
-                    onClick={() => unclaimShift(shift.id)}
-                  >
+                  <button onClick={() => unclaimShift(shift.id)}>
                     Unclaim
                   </button>
                 )}
 
                 {isAdmin && (
-                  <button
-                    onClick={() => deleteShift(shift.id)}
-                  >
+                  <button onClick={() => deleteShift(shift.id)}>
                     Delete
                   </button>
                 )}
@@ -373,15 +388,13 @@ export default function App() {
             }}
           >
             <p>
-              <strong>
-                {USER_NAMES[item.email] || item.email}
-              </strong>
+              <strong>{USER_NAMES[item.email] || item.email}</strong>
             </p>
 
-            <p>{item.date}</p>
+            <p>{normaliseDate(item.date)}</p>
 
             <p>
-              {item.starttime} - {item.endtime}
+              {formatTime(item.starttime)} – {formatTime(item.endtime)}
             </p>
           </div>
         ))}
