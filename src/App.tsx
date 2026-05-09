@@ -16,12 +16,18 @@ const ADMINS = ["laura@test.com"];
 
 function normaliseDate(dateValue: string) {
   if (!dateValue) return "";
+
   if (dateValue.includes("-")) return dateValue;
 
   const parts = dateValue.split("/");
+
   if (parts.length === 3) {
     const [day, month, year] = parts;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(
+      2,
+      "0"
+    )}`;
   }
 
   return dateValue;
@@ -31,8 +37,11 @@ function formatTime(timeValue: string) {
   if (!timeValue) return "";
 
   const [hourText, minuteText] = timeValue.split(":");
+
   let hour = Number(hourText);
+
   const minute = minuteText || "00";
+
   const ampm = hour >= 12 ? "pm" : "am";
 
   if (hour === 0) hour = 12;
@@ -43,6 +52,7 @@ function formatTime(timeValue: string) {
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
+
   const [activeTab, setActiveTab] = useState("shifts");
 
   const [loginEmail, setLoginEmail] = useState("");
@@ -80,7 +90,7 @@ export default function App() {
     const { data } = await supabase
       .from("shifts")
       .select("*")
-      .order("id", { ascending: false });
+      .order("date", { ascending: true });
 
     setShifts(data || []);
   };
@@ -89,7 +99,7 @@ export default function App() {
     const { data } = await supabase
       .from("availability")
       .select("*")
-      .order("id", { ascending: false });
+      .order("date", { ascending: true });
 
     setAvailability(data || []);
   };
@@ -157,7 +167,6 @@ export default function App() {
 
     if (error) {
       alert("Availability could not be saved.");
-      console.log(error);
       return;
     }
 
@@ -173,14 +182,22 @@ export default function App() {
   const claimShift = async (id: number) => {
     await supabase
       .from("shifts")
-      .update({ claimedby: session.user.email })
+      .update({
+        claimedby: session.user.email,
+      })
       .eq("id", id);
 
     fetchShifts();
   };
 
   const unclaimShift = async (id: number) => {
-    await supabase.from("shifts").update({ claimedby: null }).eq("id", id);
+    await supabase
+      .from("shifts")
+      .update({
+        claimedby: null,
+      })
+      .eq("id", id);
+
     fetchShifts();
   };
 
@@ -188,6 +205,7 @@ export default function App() {
     if (!confirm("Delete this shift?")) return;
 
     await supabase.from("shifts").delete().eq("id", id);
+
     fetchShifts();
   };
 
@@ -216,7 +234,9 @@ export default function App() {
             onChange={(e) => setLoginPassword(e.target.value)}
           />
 
-          {loginError && <div className="error-text">{loginError}</div>}
+          {loginError && (
+            <div className="error-text">{loginError}</div>
+          )}
 
           <button onClick={login}>Login</button>
         </div>
@@ -231,8 +251,11 @@ export default function App() {
       <div className="topbar">
         <div>
           <h1>Care Portal</h1>
+
           <p className="subtitle">
-            Welcome {USER_NAMES[session.user.email] || session.user.email}
+            Welcome{" "}
+            {USER_NAMES[session.user.email] ||
+              session.user.email}
             {isAdmin ? " (Admin)" : " (Carer)"}
           </p>
         </div>
@@ -244,22 +267,45 @@ export default function App() {
 
       <div className="tabs">
         <button
-          className={activeTab === "shifts" ? "tab active-tab" : "tab"}
+          className={
+            activeTab === "shifts"
+              ? "tab active-tab"
+              : "tab"
+          }
           onClick={() => setActiveTab("shifts")}
         >
           Shifts
         </button>
 
         <button
-          className={activeTab === "availability" ? "tab active-tab" : "tab"}
+          className={
+            activeTab === "availability"
+              ? "tab active-tab"
+              : "tab"
+          }
           onClick={() => setActiveTab("availability")}
         >
           Availability
         </button>
 
+        <button
+          className={
+            activeTab === "calendar"
+              ? "tab active-tab"
+              : "tab"
+          }
+          onClick={() => setActiveTab("calendar")}
+        >
+          Calendar
+        </button>
+
         {isAdmin && (
           <button
-            className={activeTab === "admin" ? "tab active-tab" : "tab"}
+            className={
+              activeTab === "admin"
+                ? "tab active-tab"
+                : "tab"
+            }
             onClick={() => setActiveTab("admin")}
           >
             Admin
@@ -272,14 +318,44 @@ export default function App() {
           <h2>Add Shift</h2>
 
           <div className="form-grid">
-            <input placeholder="Client" value={client} onChange={(e) => setClient(e.target.value)} />
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
-            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-            <input placeholder="Suburb" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
+            <input
+              placeholder="Client"
+              value={client}
+              onChange={(e) => setClient(e.target.value)}
+            />
+
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+            />
+
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+            />
+
+            <input
+              placeholder="Suburb"
+              value={suburb}
+              onChange={(e) => setSuburb(e.target.value)}
+            />
 
             <label className="urgent-box">
-              <input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={urgent}
+                onChange={(e) =>
+                  setUrgent(e.target.checked)
+                }
+              />
               Urgent
             </label>
           </div>
@@ -294,28 +370,59 @@ export default function App() {
             <h2>My Availability</h2>
 
             <div className="form-grid">
-              <input type="date" value={availDate} onChange={(e) => setAvailDate(e.target.value)} />
-              <input type="time" value={availStart} onChange={(e) => setAvailStart(e.target.value)} />
-              <input type="time" value={availEnd} onChange={(e) => setAvailEnd(e.target.value)} />
+              <input
+                type="date"
+                value={availDate}
+                onChange={(e) =>
+                  setAvailDate(e.target.value)
+                }
+              />
+
+              <input
+                type="time"
+                value={availStart}
+                onChange={(e) =>
+                  setAvailStart(e.target.value)
+                }
+              />
+
+              <input
+                type="time"
+                value={availEnd}
+                onChange={(e) =>
+                  setAvailEnd(e.target.value)
+                }
+              />
             </div>
 
-            <button onClick={addAvailability}>Submit Availability</button>
+            <button onClick={addAvailability}>
+              Submit Availability
+            </button>
           </div>
 
           <div className="availability-card">
             <h2>Availability Submitted</h2>
 
-            {availability.length === 0 && <p>No availability submitted yet.</p>}
+            {availability.length === 0 && (
+              <p>No availability submitted yet.</p>
+            )}
 
             {availability.map((item) => (
               <div key={item.id}>
                 <p>
-                  <strong>{USER_NAMES[item.email] || item.email}</strong>
+                  <strong>
+                    {USER_NAMES[item.email] ||
+                      item.email}
+                  </strong>
                 </p>
+
                 <p>{normaliseDate(item.date)}</p>
+
                 <p>
-                  {formatTime(item.starttime)} – {formatTime(item.endtime)}
+                  {formatTime(item.starttime)} –{" "}
+                  {formatTime(item.endtime)}
                 </p>
+
                 <hr />
               </div>
             ))}
@@ -323,55 +430,127 @@ export default function App() {
         </>
       )}
 
+      {activeTab === "calendar" && (
+        <div>
+          {shifts.map((shift) => (
+            <div className="shift-card" key={shift.id}>
+              <h2>{normaliseDate(shift.date)}</h2>
+
+              <h3>{shift.client}</h3>
+
+              <p>
+                {formatTime(shift.time)} –{" "}
+                {formatTime(shift.endtime)}
+              </p>
+
+              <p>{shift.suburb}</p>
+
+              {shift.claimedby ? (
+                <p className="covered">
+                  Covered by{" "}
+                  {USER_NAMES[shift.claimedby] ||
+                    shift.claimedby}
+                </p>
+              ) : (
+                <p className="not-covered">
+                  Not Covered
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {activeTab === "shifts" && (
         <div className="shift-list">
           {shifts.map((shift) => {
-            const isMine = shift.claimedby === session.user.email;
-            const matches = getMatchingCarers(shift);
+            const isMine =
+              shift.claimedby === session.user.email;
+
+            const matches =
+              getMatchingCarers(shift);
 
             return (
-              <div className="shift-card" key={shift.id}>
+              <div
+                className="shift-card"
+                key={shift.id}
+              >
                 <div className="shift-header">
                   <h2>{shift.client}</h2>
-                  {shift.urgent && <span className="urgent-badge">URGENT</span>}
+
+                  {shift.urgent && (
+                    <span className="urgent-badge">
+                      URGENT
+                    </span>
+                  )}
                 </div>
 
                 <p>{normaliseDate(shift.date)}</p>
 
                 <p>
-                  {formatTime(shift.time)} – {formatTime(shift.endtime)}
+                  {formatTime(shift.time)} –{" "}
+                  {formatTime(shift.endtime)}
                 </p>
 
                 <p>{shift.suburb}</p>
 
                 {shift.claimedby ? (
                   <p className="covered">
-                    Covered by {USER_NAMES[shift.claimedby] || shift.claimedby}
+                    Covered by{" "}
+                    {USER_NAMES[shift.claimedby] ||
+                      shift.claimedby}
                   </p>
                 ) : (
-                  <p className="not-covered">Not Covered</p>
+                  <p className="not-covered">
+                    Not Covered
+                  </p>
                 )}
 
                 {matches.length > 0 && (
                   <div className="available-box">
-                    <strong>Available carers:</strong>
+                    <strong>
+                      Available carers:
+                    </strong>
+
                     {matches.map((match) => (
-                      <p key={match.id}>• {USER_NAMES[match.email] || match.email}</p>
+                      <p key={match.id}>
+                        •{" "}
+                        {USER_NAMES[match.email] ||
+                          match.email}
+                      </p>
                     ))}
                   </div>
                 )}
 
                 <div className="claim-buttons">
                   {!shift.claimedby && (
-                    <button onClick={() => claimShift(shift.id)}>Claim Shift</button>
+                    <button
+                      onClick={() =>
+                        claimShift(shift.id)
+                      }
+                    >
+                      Claim Shift
+                    </button>
                   )}
 
                   {isMine && (
-                    <button onClick={() => unclaimShift(shift.id)}>Unclaim</button>
+                    <button
+                      onClick={() =>
+                        unclaimShift(shift.id)
+                      }
+                    >
+                      Unclaim
+                    </button>
                   )}
 
                   {isAdmin && (
-                    <button onClick={() => deleteShift(shift.id)}>Delete</button>
+                    <button
+                      onClick={() =>
+                        deleteShift(shift.id)
+                      }
+                    >
+                      Delete
+                    </button>
                   )}
                 </div>
               </div>
