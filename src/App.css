@@ -5,7 +5,7 @@ body {
 }
 
 .app {
-  max-width: 1000px;
+  max-width: 900px;
   margin: auto;
   padding: 30px 20px;
 }
@@ -20,10 +20,11 @@ body {
 .topbar h1 {
   margin: 0;
   color: #243447;
+  font-size: 42px;
 }
 
 .topbar p {
-  margin: 5px 0 0;
+  margin: 6px 0 0;
   color: #666;
 }
 
@@ -41,20 +42,28 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  background: #f4f6f8;
 }
 
 .login-card {
   background: white;
   padding: 40px;
-  width: 320px;
-  border-radius: 20px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+  width: 340px;
+  border-radius: 22px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
 }
 
 .login-card h1 {
-  margin-top: 0;
-  margin-bottom: 25px;
+  margin: 0;
   text-align: center;
+  color: #243447;
+  font-size: 34px;
+}
+
+.login-card p {
+  text-align: center;
+  color: #666;
+  margin-bottom: 25px;
 }
 
 .login-card input {
@@ -80,14 +89,15 @@ body {
 .add-shift-card {
   background: white;
   padding: 25px;
-  border-radius: 20px;
+  border-radius: 22px;
   margin-bottom: 25px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .add-shift-card h2 {
   margin-top: 0;
   color: #243447;
+  text-align: center;
 }
 
 .form-grid {
@@ -98,7 +108,7 @@ body {
 }
 
 .form-grid input {
-  padding: 12px;
+  padding: 13px;
   border-radius: 10px;
   border: 1px solid #ccc;
 }
@@ -121,9 +131,9 @@ body {
 
 .shift-card {
   background: white;
-  border-radius: 20px;
+  border-radius: 22px;
   padding: 25px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 .shift-header {
@@ -178,14 +188,35 @@ body {
   gap: 8px;
 }
 
+.error-text {
+  background: #fdecec;
+  color: #b42318;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
 @media (max-width: 700px) {
+  .app {
+    padding: 20px 14px;
+  }
+
   .topbar {
     flex-direction: column;
     align-items: flex-start;
     gap: 15px;
   }
 
+  .topbar h1 {
+    font-size: 34px;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .login-card {
+    width: 100%;
   }
 }
