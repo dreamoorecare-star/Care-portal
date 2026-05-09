@@ -236,3 +236,25 @@ hr {
 .active-tab {
   background: #1f2f4a;
 }
+.tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 35px;
+}
+
+.tab {
+  flex: 1;
+  padding: 14px;
+  border-radius: 16px;
+  border: none;
+  background: #dfe4ec;
+  color: #1f2f4a;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.active-tab {
+  background: #4b6797;
+  color: white;
+}
