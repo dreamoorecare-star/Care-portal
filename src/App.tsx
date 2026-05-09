@@ -16,7 +16,6 @@ const ADMINS = ["laura@test.com"];
 
 function normaliseDate(dateValue: string) {
   if (!dateValue) return "";
-
   if (dateValue.includes("-")) return dateValue;
 
   const parts = dateValue.split("/");
@@ -34,7 +33,6 @@ function formatTime(timeValue: string) {
   const [hourText, minuteText] = timeValue.split(":");
   let hour = Number(hourText);
   const minute = minuteText || "00";
-
   const ampm = hour >= 12 ? "pm" : "am";
 
   if (hour === 0) hour = 12;
@@ -45,6 +43,7 @@ function formatTime(timeValue: string) {
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState("shifts");
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -67,6 +66,10 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
+    });
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
     });
 
     fetchShifts();
@@ -113,6 +116,11 @@ export default function App() {
   };
 
   const addShift = async () => {
+    if (!client || !date || !time || !endTime || !suburb) {
+      alert("Please fill in all shift details.");
+      return;
+    }
+
     await supabase.from("shifts").insert({
       client,
       date: normaliseDate(date),
@@ -121,6 +129,7 @@ export default function App() {
       suburb,
       urgent,
       claimedby: null,
+      requestedby: session.user.email,
     });
 
     setClient("");
@@ -133,60 +142,60 @@ export default function App() {
     fetchShifts();
   };
 
-  const claimShift = async (id: number) => {
-    await supabase
-      .from("shifts")
-      .update({
-        claimedby: session.user.email,
-      })
-      .eq("id", id);
-
-    fetchShifts();
-  };
-
-  const unclaimShift = async (id: number) => {
-    await supabase
-      .from("shifts")
-      .update({
-        claimedby: null,
-      })
-      .eq("id", id);
-
-    fetchShifts();
-  };
-
-  const deleteShift = async (id: number) => {
-    await supabase.from("shifts").delete().eq("id", id);
-    fetchShifts();
-  };
-
   const addAvailability = async () => {
-    await supabase.from("availability").insert({
+    if (!availDate || !availStart || !availEnd) {
+      alert("Please complete availability fields.");
+      return;
+    }
+
+    const { error } = await supabase.from("availability").insert({
       email: session.user.email,
       date: normaliseDate(availDate),
       starttime: availStart,
       endtime: availEnd,
     });
 
+    if (error) {
+      alert("Availability could not be saved.");
+      console.log(error);
+      return;
+    }
+
     setAvailDate("");
     setAvailStart("");
     setAvailEnd("");
 
     fetchAvailability();
+
+    alert("Availability submitted.");
+  };
+
+  const claimShift = async (id: number) => {
+    await supabase
+      .from("shifts")
+      .update({ claimedby: session.user.email })
+      .eq("id", id);
+
+    fetchShifts();
+  };
+
+  const unclaimShift = async (id: number) => {
+    await supabase.from("shifts").update({ claimedby: null }).eq("id", id);
+    fetchShifts();
+  };
+
+  const deleteShift = async (id: number) => {
+    if (!confirm("Delete this shift?")) return;
+
+    await supabase.from("shifts").delete().eq("id", id);
+    fetchShifts();
   };
 
   const getMatchingCarers = (shift: any) => {
     return availability.filter((item) => {
-      const sameDate = normaliseDate(item.date) === normaliseDate(shift.date);
-
-      const startsBeforeOrSame = item.starttime <= shift.time;
-      const endsAfterOrSame = item.endtime >= shift.endtime;
-
-      return sameDate && startsBeforeOrSame && endsAfterOrSame;
+      return normaliseDate(item.date) === normaliseDate(shift.date);
     });
   };
-
-  const isAdmin = ADMINS.includes(session?.user?.email);
 
   if (!session) {
     return (
@@ -215,190 +224,161 @@ export default function App() {
     );
   }
 
+  const isAdmin = ADMINS.includes(session.user.email);
+
   return (
     <div className="app">
       <div className="topbar">
         <div>
           <h1>Care Portal</h1>
-          <p>
+          <p className="subtitle">
             Welcome {USER_NAMES[session.user.email] || session.user.email}
             {isAdmin ? " (Admin)" : " (Carer)"}
           </p>
         </div>
 
-        <button onClick={logout}>Logout</button>
+        <button className="logout-btn" onClick={logout}>
+          Logout
+        </button>
       </div>
 
-      {isAdmin && (
-        <div className="add-shift-card">
+      <div className="tabs">
+        <button
+          className={activeTab === "shifts" ? "tab active-tab" : "tab"}
+          onClick={() => setActiveTab("shifts")}
+        >
+          Shifts
+        </button>
+
+        <button
+          className={activeTab === "availability" ? "tab active-tab" : "tab"}
+          onClick={() => setActiveTab("availability")}
+        >
+          Availability
+        </button>
+
+        {isAdmin && (
+          <button
+            className={activeTab === "admin" ? "tab active-tab" : "tab"}
+            onClick={() => setActiveTab("admin")}
+          >
+            Admin
+          </button>
+        )}
+      </div>
+
+      {activeTab === "admin" && isAdmin && (
+        <div className="card">
           <h2>Add Shift</h2>
 
           <div className="form-grid">
-            <input
-              placeholder="Client"
-              value={client}
-              onChange={(e) => setClient(e.target.value)}
-            />
-
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
-
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-            />
-
-            <input
-              placeholder="Suburb"
-              value={suburb}
-              onChange={(e) => setSuburb(e.target.value)}
-            />
+            <input placeholder="Client" value={client} onChange={(e) => setClient(e.target.value)} />
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+            <input placeholder="Suburb" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
 
             <label className="urgent-box">
-              <input
-                type="checkbox"
-                checked={urgent}
-                onChange={(e) => setUrgent(e.target.checked)}
-              />
+              <input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} />
               Urgent
             </label>
           </div>
 
-          <button className="primary-btn" onClick={addShift}>
-            Add Shift
-          </button>
+          <button onClick={addShift}>Add Shift</button>
         </div>
       )}
 
-      <div className="add-shift-card">
-        <h2>My Availability</h2>
+      {activeTab === "availability" && (
+        <>
+          <div className="card">
+            <h2>My Availability</h2>
 
-        <div className="form-grid">
-          <input
-            type="date"
-            value={availDate}
-            onChange={(e) => setAvailDate(e.target.value)}
-          />
-
-          <input
-            type="time"
-            value={availStart}
-            onChange={(e) => setAvailStart(e.target.value)}
-          />
-
-          <input
-            type="time"
-            value={availEnd}
-            onChange={(e) => setAvailEnd(e.target.value)}
-          />
-        </div>
-
-        <button className="primary-btn" onClick={addAvailability}>
-          Submit Availability
-        </button>
-      </div>
-
-      <div className="shift-list">
-        {shifts.map((shift) => {
-          const isMine = shift.claimedby === session.user.email;
-          const matches = getMatchingCarers(shift);
-
-          return (
-            <div className="shift-card" key={shift.id}>
-              <div className="shift-header">
-                <h2>{shift.client}</h2>
-
-                {shift.urgent && (
-                  <span className="urgent-badge">URGENT</span>
-                )}
-              </div>
-
-              <p>{normaliseDate(shift.date)}</p>
-
-              <p>
-                {formatTime(shift.time)} – {formatTime(shift.endtime)}
-              </p>
-
-              <p>{shift.suburb}</p>
-
-              {shift.claimedby ? (
-                <p className="covered">
-                  Covered by{" "}
-                  {USER_NAMES[shift.claimedby] || shift.claimedby}
-                </p>
-              ) : (
-                <p className="not-covered">Not Covered</p>
-              )}
-
-              {matches.length > 0 && (
-                <div className="match-box">
-                  <strong>Available carers:</strong>
-
-                  {matches.map((match) => (
-                    <p key={match.id}>
-                      • {USER_NAMES[match.email] || match.email}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              <div className="button-row">
-                {!shift.claimedby && (
-                  <button onClick={() => claimShift(shift.id)}>
-                    Claim Shift
-                  </button>
-                )}
-
-                {isMine && (
-                  <button onClick={() => unclaimShift(shift.id)}>
-                    Unclaim
-                  </button>
-                )}
-
-                {isAdmin && (
-                  <button onClick={() => deleteShift(shift.id)}>
-                    Delete
-                  </button>
-                )}
-              </div>
+            <div className="form-grid">
+              <input type="date" value={availDate} onChange={(e) => setAvailDate(e.target.value)} />
+              <input type="time" value={availStart} onChange={(e) => setAvailStart(e.target.value)} />
+              <input type="time" value={availEnd} onChange={(e) => setAvailEnd(e.target.value)} />
             </div>
-          );
-        })}
-      </div>
 
-      <div className="add-shift-card">
-        <h2>Availability Submitted</h2>
-
-        {availability.map((item) => (
-          <div
-            key={item.id}
-            style={{
-              borderBottom: "1px solid #ddd",
-              padding: "10px 0",
-            }}
-          >
-            <p>
-              <strong>{USER_NAMES[item.email] || item.email}</strong>
-            </p>
-
-            <p>{normaliseDate(item.date)}</p>
-
-            <p>
-              {formatTime(item.starttime)} – {formatTime(item.endtime)}
-            </p>
+            <button onClick={addAvailability}>Submit Availability</button>
           </div>
-        ))}
-      </div>
+
+          <div className="availability-card">
+            <h2>Availability Submitted</h2>
+
+            {availability.length === 0 && <p>No availability submitted yet.</p>}
+
+            {availability.map((item) => (
+              <div key={item.id}>
+                <p>
+                  <strong>{USER_NAMES[item.email] || item.email}</strong>
+                </p>
+                <p>{normaliseDate(item.date)}</p>
+                <p>
+                  {formatTime(item.starttime)} – {formatTime(item.endtime)}
+                </p>
+                <hr />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeTab === "shifts" && (
+        <div className="shift-list">
+          {shifts.map((shift) => {
+            const isMine = shift.claimedby === session.user.email;
+            const matches = getMatchingCarers(shift);
+
+            return (
+              <div className="shift-card" key={shift.id}>
+                <div className="shift-header">
+                  <h2>{shift.client}</h2>
+                  {shift.urgent && <span className="urgent-badge">URGENT</span>}
+                </div>
+
+                <p>{normaliseDate(shift.date)}</p>
+
+                <p>
+                  {formatTime(shift.time)} – {formatTime(shift.endtime)}
+                </p>
+
+                <p>{shift.suburb}</p>
+
+                {shift.claimedby ? (
+                  <p className="covered">
+                    Covered by {USER_NAMES[shift.claimedby] || shift.claimedby}
+                  </p>
+                ) : (
+                  <p className="not-covered">Not Covered</p>
+                )}
+
+                {matches.length > 0 && (
+                  <div className="available-box">
+                    <strong>Available carers:</strong>
+                    {matches.map((match) => (
+                      <p key={match.id}>• {USER_NAMES[match.email] || match.email}</p>
+                    ))}
+                  </div>
+                )}
+
+                <div className="claim-buttons">
+                  {!shift.claimedby && (
+                    <button onClick={() => claimShift(shift.id)}>Claim Shift</button>
+                  )}
+
+                  {isMine && (
+                    <button onClick={() => unclaimShift(shift.id)}>Unclaim</button>
+                  )}
+
+                  {isAdmin && (
+                    <button onClick={() => deleteShift(shift.id)}>Delete</button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
