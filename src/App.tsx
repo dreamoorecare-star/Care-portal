@@ -147,6 +147,16 @@ export default function App() {
     fetchAvailability();
   };
 
+  const getMatchingCarers = (shift: any) => {
+    return availability.filter((item) => {
+      return (
+        item.date === shift.date &&
+        item.starttime <= shift.time &&
+        item.endtime >= shift.endtime
+      );
+    });
+  };
+
   const isAdmin = ADMINS.includes(session?.user?.email);
 
   if (!session) {
@@ -275,6 +285,8 @@ export default function App() {
         {shifts.map((shift) => {
           const isMine = shift.claimedby === session.user.email;
 
+          const matches = getMatchingCarers(shift);
+
           return (
             <div className="shift-card" key={shift.id}>
               <div className="shift-header">
@@ -305,6 +317,18 @@ export default function App() {
                 <p className="not-covered">
                   Not Covered
                 </p>
+              )}
+
+              {matches.length > 0 && (
+                <div style={{ marginTop: "10px" }}>
+                  <strong>Available carers:</strong>
+
+                  {matches.map((match) => (
+                    <p key={match.id}>
+                      • {USER_NAMES[match.email] || match.email}
+                    </p>
+                  ))}
+                </div>
               )}
 
               <div className="button-row">
