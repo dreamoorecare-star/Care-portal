@@ -298,6 +298,16 @@ export default function App() {
         >
           Calendar
         </button>
+        <button
+  className={
+    activeTab === "myshifts"
+      ? "tab active-tab"
+      : "tab"
+  }
+  onClick={() => setActiveTab("myshifts")}
+>
+  My Shifts
+</button>
 
         {isAdmin && (
           <button
@@ -561,7 +571,58 @@ export default function App() {
     </div>
   </div>
 )}
+{activeTab === "myshifts" && (
+  <div className="shift-list">
+    {shifts
+      .filter(
+        (shift) =>
+          shift.claimedby === session.user.email
+      )
+      .map((shift) => (
+        <div
+          className="shift-card"
+          key={shift.id}
+        >
+          <h2>{shift.client}</h2>
 
+          <p>{normaliseDate(shift.date)}</p>
+
+          <p>
+            {formatTime(shift.time)} –{" "}
+            {formatTime(shift.endtime)}
+          </p>
+
+          <p>{shift.suburb}</p>
+
+          <p className="covered">
+            Claimed by You
+          </p>
+
+          <button
+            onClick={() =>
+              unclaimShift(shift.id)
+            }
+          >
+            Unclaim Shift
+          </button>
+        </div>
+      ))}
+
+    {shifts.filter(
+      (shift) =>
+        shift.claimedby === session.user.email
+    ).length === 0 && (
+      <div className="card">
+        <h2>No claimed shifts</h2>
+
+        <p>
+          Any shifts you claim will appear
+          here.
+        </p>
+      </div>
+    )}
+  </div>
+)}
       {activeTab === "shifts" && (
         <div className="shift-list">
           {shifts.map((shift) => {
