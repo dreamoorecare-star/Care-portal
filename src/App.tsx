@@ -52,9 +52,9 @@ function formatTime(timeValue: string) {
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
-
   const [activeTab, setActiveTab] = useState("shifts");
-
+  const [calendarView, setCalendarView] = useState("week");
+  const [calendarStartOffset, setCalendarStartOffset] = useState(0);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -432,28 +432,74 @@ export default function App() {
 
       {activeTab === "calendar" && (
   <div className="calendar-page">
-    <div className="calendar-controls">
-      <button
-        className={
-          activeTab === "calendar-week"
-            ? "active-calendar-btn"
-            : ""
-        }
-      >
-        Week
-      </button>
+<div className="calendar-controls">
+  <button
+    className={calendarView === "week" ? "active-calendar-btn" : ""}
+    onClick={() => setCalendarView("week")}
+  >
+    Week
+  </button>
 
-      <button>2 Weeks</button>
+  <button
+    className={calendarView === "2weeks" ? "active-calendar-btn" : ""}
+    onClick={() => setCalendarView("2weeks")}
+  >
+    2 Weeks
+  </button>
 
-      <button>Month</button>
-    </div>
+  <button
+    className={calendarView === "month" ? "active-calendar-btn" : ""}
+    onClick={() => setCalendarView("month")}
+  >
+    Month
+  </button>
+</div>
+<div className="calendar-nav">
+  <button
+    onClick={() =>
+      setCalendarStartOffset(
+        calendarStartOffset -
+          (calendarView === "week" ? 7 : calendarView === "2weeks" ? 14 : 30)
+      )
+    }
+  >
+    Previous
+  </button>
 
+  <button onClick={() => setCalendarStartOffset(0)}>Today</button>
+
+  <button
+    onClick={() =>
+      setCalendarStartOffset(
+        calendarStartOffset +
+          (calendarView === "week" ? 7 : calendarView === "2weeks" ? 14 : 30)
+      )
+    }
+  >
+    Next
+  </button>
+</div>
+<p className="calendar-view-label">
+  Showing{" "}
+  {calendarView === "week"
+    ? "7 days"
+    : calendarView === "2weeks"
+    ? "14 days"
+    : "30 days"}
+</p>
     <div className="calendar-grid">
-      {Array.from({ length: 14 }).map((_, index) => {
-        const today = new Date();
+    {Array.from({
+  length:
+    calendarView === "week"
+      ? 7
+      : calendarView === "2weeks"
+      ? 14
+      : 30,
+}).map((_, index) => {
+  const today = new Date();
 
-        const dayDate = new Date();
-        dayDate.setDate(today.getDate() + index);
+  const dayDate = new Date();
+  dayDate.setDate(today.getDate() + calendarStartOffset + index);
 
         const formattedDate = dayDate
           .toISOString()
